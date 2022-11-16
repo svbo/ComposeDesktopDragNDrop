@@ -7,7 +7,6 @@ import androidx.compose.ui.awt.awtEvent
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isPrimaryPressed
@@ -19,7 +18,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.*
-import androidx.compose.ui.window.WindowPosition.PlatformDefault.y
 import java.awt.Point
 
 @Composable
@@ -101,12 +99,12 @@ internal object DragState {
 
     fun endDrag(): Boolean {
         if (!isDragging) return false
-        val target = dropTargets.values
-            .firstOrNull { getBounds(it).contains(positionOnScreen!!) } //&& it.canAccept(dragTarget?.item)
-
-        val result = target?.doAccept(dragTarget?.item)
+        val allTargets = dropTargets.values
+            .filter { getBounds(it).contains(positionOnScreen!!) && it.canAccept(dragTarget?.item) }
+        val target = allTargets.firstOrNull() //TODO: pick the window which is on top
+        val result = target?.doAccept(dragTarget?.item) ?: false
         cancelDrag()
-        return result == true
+        return result
     }
 
     fun cancelDrag() {
@@ -140,8 +138,7 @@ internal object DragState {
             val left = positionOnScreen.x.dp + dropTarget.bounds.left.toDp()
             val right = left + dropTarget.bounds.width.toDp()
             val bottom = top + dropTarget.bounds.height.toDp()
-            val bounds = Rect(left = left.value, top = top.value, right = right.value, bottom = bottom.value)
-            return bounds
+            return Rect(left = left.value, top = top.value, right = right.value, bottom = bottom.value)
         }
     }
 
@@ -200,7 +197,6 @@ fun <T> Modifier.dragTarget(
             }
         )
     }
-
 }
 
 fun <T> Modifier.dropTarget(
@@ -210,7 +206,7 @@ fun <T> Modifier.dropTarget(
     onExit: (T) -> Unit,
 ) = composed {
 
-    var bounds by remember { mutableStateOf<Rect>(Rect.Zero) }
+    var bounds by remember { mutableStateOf(Rect.Zero) }
     val key by remember { mutableStateOf(DropTargetKey()) }
     val density = LocalDensity.current
     val window = LocalWindow.current
